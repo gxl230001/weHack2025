@@ -72,7 +72,7 @@ function App() {
     
     setIsCalibrating(true);
     setCalibrationStep(0);
-    setStatus('Calibrating: Look at the blue dot and click on it');
+    setStatus('Calibration started: Point 1 of 9');
   };
 
   const handleCalibrationClick = (e) => {
@@ -88,13 +88,14 @@ function App() {
         return prevStep;
       }
       
+      setStatus(`Calibration: Point ${nextStep + 1} of 9`);
       return nextStep;
     });
   };
 
   const finishCalibration = () => {
     setIsCalibrating(false);
-    setStatus('Calibration complete');
+    setStatus('Calibration complete! Click "Start Tracking" to begin.');
   };
 
   const startTracking = () => {
@@ -104,7 +105,7 @@ function App() {
     }
     
     setIsTracking(true);
-    setStatus('Tracking active');
+    setStatus('Tracking active - Look around the screen!');
   };
 
   const stopTracking = () => {
@@ -125,17 +126,36 @@ function App() {
           style={{ display: isTracking ? 'block' : 'none' }}
         ></div>
         
-        {isCalibrating && calibrationPoints.map((point, index) => (
-          <div 
-            key={index}
-            className={`calibration-point ${index === calibrationStep ? 'active' : ''}`}
-            style={{ 
-              left: `${point.x}%`, 
-              top: `${point.y}%`,
-              display: index === calibrationStep ? 'block' : 'none'
-            }}
-          ></div>
-        ))}
+        {isCalibrating && (
+          <div className="calibration-container">
+            <div 
+              className="calibration-point active"
+              style={{ 
+                left: `${calibrationPoints[calibrationStep].x}%`, 
+                top: `${calibrationPoints[calibrationStep].y}%`
+              }}
+            ></div>
+            
+            <div className="calibration-instructions">
+              <div className="instruction-box">
+                <h3>Calibration Step {calibrationStep + 1} of 9</h3>
+                <p>1. Look directly at the pulsing dot</p>
+                <p>2. Click on the dot while keeping your gaze fixed on it</p>
+                <p>3. Repeat for all 9 points to complete calibration</p>
+              </div>
+            </div>
+            
+            <div className="calibration-progress">
+              <div className="progress-bar">
+                <div 
+                  className="progress-fill" 
+                  style={{ width: `${(calibrationStep / calibrationPoints.length) * 100}%` }}
+                ></div>
+              </div>
+              <div className="progress-text">{calibrationStep} of 9 points completed</div>
+            </div>
+          </div>
+        )}
         
         <div className="video-feed">
           <video ref={videoRef} autoPlay playsInline></video>
