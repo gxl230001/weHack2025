@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AuthResponse, PatientListItem } from "@shared/schema";
 import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import PatientList from "@/components/caregiver/PatientList";
 import PatientNotes from "@/components/caregiver/PatientNotes";
 import { 
@@ -36,13 +36,15 @@ export default function CaregiverDashboard() {
   const logout = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/logout", {});
+      // Clear query cache to ensure proper logout
+      queryClient.clear();
     },
     onSuccess: () => {
       toast({
         title: "Logged out successfully",
         description: "You have been logged out of your account.",
       });
-      setLocation("/");
+      window.location.href = "/"; // Use direct redirection for more reliable logout
     },
     onError: () => {
       toast({
