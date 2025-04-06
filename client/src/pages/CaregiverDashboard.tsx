@@ -65,7 +65,7 @@ export default function CaregiverDashboard() {
     <div className="min-h-screen bg-gray-100">
       <header className="bg-primary px-6 py-4 text-white">
         <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-semibold">MedConnect</h1>
+          <h1 className="text-2xl font-semibold">Lookie</h1>
           <div className="flex items-center gap-4">
             <span>Welcome, {user?.name}</span>
             <Button 
@@ -218,7 +218,7 @@ export default function CaregiverDashboard() {
       </main>
 
       <footer className="bg-gray-50 border-t border-gray-200 py-4 text-center text-sm text-gray-600">
-        <p>© 2023 MedConnect. All rights reserved.</p>
+        <p>© 2025 Lookie. All rights reserved.</p>
       </footer>
     </div>
   );

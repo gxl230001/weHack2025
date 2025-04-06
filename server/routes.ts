@@ -338,6 +338,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Search for a patient by username
+  app.get("/api/caregiver/search-patient", requireAuth, requireCaregiver, async (req, res) => {
+    try {
+      const { username } = req.query;
+      
+      if (!username || typeof username !== 'string') {
+        return res.status(400).json({ message: "Username query parameter is required" });
+      }
+      
+      // Find user by username
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user || user.userType !== 'patient') {
+        return res.status(404).json({ message: "Patient not found" });
+      }
+      
+      // Get the patient details
+      const patient = await storage.getPatient(user.id);
+      
+      if (!patient) {
+        return res.status(404).json({ message: "Patient profile not found" });
+      }
+      
+      // Return patient info
+      const patientData = patientListItemSchema.parse({
+        id: patient.id,
+        userId: patient.userId,
+        name: user.name,
+        age: patient.age,
+        disabilityType: patient.disabilityType
+      });
+      
+      res.status(200).json(patientData);
+    } catch (error) {
+      res.status(500).json({ message: "Server error searching for patient" });
+    }
+  });
+  
   // Add a health note for a patient
   app.post("/api/caregiver/health-note", requireAuth, requireCaregiver, async (req, res) => {
     try {

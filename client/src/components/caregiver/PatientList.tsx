@@ -5,7 +5,7 @@ import { PatientListItem } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Activity, UserPlus } from "lucide-react";
+import { Activity, UserPlus, Search } from "lucide-react";
 import { 
   Dialog, 
   DialogContent, 
@@ -15,6 +15,8 @@ import {
   DialogTrigger
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const DISABILITY_TYPES = {
   "cerebral-palsy": "Cerebral Palsy",
@@ -72,6 +74,44 @@ export default function PatientList() {
     );
   });
 
+  // State for searching patients
+  const [searchUsername, setSearchUsername] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResult, setSearchResult] = useState<PatientListItem | null>(null);
+
+  // Search patient by username
+  const searchPatient = useMutation({
+    mutationFn: async (username: string) => {
+      setIsSearching(true);
+      try {
+        const response = await apiRequest("GET", `/api/caregiver/search-patient?username=${encodeURIComponent(username)}`, null);
+        const result = await response.json();
+        return result as PatientListItem;
+      } catch (error) {
+        throw error;
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    onSuccess: (data) => {
+      setSearchResult(data);
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Patient not found",
+        description: "No patient found with that username.",
+      });
+      setSearchResult(null);
+    }
+  });
+
+  const handleSearch = () => {
+    if (searchUsername.trim()) {
+      searchPatient.mutate(searchUsername);
+    }
+  };
+
   return (
     <>
       <Card>
@@ -82,14 +122,27 @@ export default function PatientList() {
               Manage your patient list
             </CardDescription>
           </div>
-          <Button 
-            size="sm" 
-            onClick={() => setShowAddPatientDialog(true)}
-            className="text-xs"
-          >
-            <PlusCircle className="h-4 w-4 mr-1" />
-            Add Patient
-          </Button>
+          <div className="flex items-center space-x-2">
+            <div className="relative">
+              <Input 
+                type="text" 
+                placeholder="Search by username" 
+                className="w-44 text-xs" 
+                value={searchUsername}
+                onChange={(e) => setSearchUsername(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+            </div>
+            <Button 
+              size="sm" 
+              onClick={handleSearch}
+              disabled={isSearching || !searchUsername.trim()}
+              className="text-xs"
+            >
+              <Search className="h-4 w-4 mr-1" />
+              {isSearching ? "Searching..." : "Search"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {loadingAssigned ? (
@@ -131,55 +184,55 @@ export default function PatientList() {
         </CardContent>
       </Card>
 
-      {/* Add Patient Dialog */}
-      <Dialog open={showAddPatientDialog} onOpenChange={setShowAddPatientDialog}>
+      {/* Search Results Dialog */}
+      <Dialog open={!!searchResult} onOpenChange={(open) => !open && setSearchResult(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Patient</DialogTitle>
+            <DialogTitle>Patient Found</DialogTitle>
             <DialogDescription>
-              Select a patient to add to your care list.
+              Patient information and options
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto py-2">
-            {loadingAvailable ? (
-              <p className="text-center py-4">Loading available patients...</p>
-            ) : (
-              <>
-                {filteredAvailablePatients && filteredAvailablePatients.length > 0 ? (
-                  filteredAvailablePatients.map((patient) => (
-                    <div 
-                      key={patient.id} 
-                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+          {searchResult && (
+            <div className="space-y-4">
+              <div className="p-4 border rounded-lg">
+                <h3 className="font-medium text-lg">{searchResult.name}</h3>
+                <div className="flex items-center mt-2 mb-4">
+                  <Badge variant="outline" className="mr-2">
+                    Age: {searchResult.age}
+                  </Badge>
+                  <Badge variant="secondary">
+                    {DISABILITY_TYPES[searchResult.disabilityType as keyof typeof DISABILITY_TYPES] || searchResult.disabilityType}
+                  </Badge>
+                </div>
+
+                <div className="flex flex-col space-y-2 mt-4">
+                  <Button 
+                    onClick={() => {
+                      setSelectedPatient(searchResult);
+                      setSearchResult(null);
+                    }}
+                  >
+                    View Details
+                  </Button>
+                  
+                  {!assignedPatients?.some(p => p.id === searchResult.id) && (
+                    <Button 
+                      variant="outline"
+                      disabled={assignPatient.isPending}
+                      onClick={() => {
+                        assignPatient.mutate(searchResult.id);
+                        setSearchResult(null);
+                      }}
                     >
-                      <div>
-                        <h4 className="font-medium">{patient.name}</h4>
-                        <div className="flex items-center mt-1">
-                          <Badge variant="outline" className="mr-2 text-xs">
-                            Age: {patient.age}
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs">
-                            {DISABILITY_TYPES[patient.disabilityType as keyof typeof DISABILITY_TYPES] || patient.disabilityType}
-                          </Badge>
-                        </div>
-                      </div>
-                      <Button 
-                        size="sm"
-                        disabled={assignPatient.isPending}
-                        onClick={() => assignPatient.mutate(patient.id)}
-                      >
-                        {assignPatient.isPending ? "Adding..." : "Add"}
-                      </Button>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-6 text-gray-500">
-                    <p>No more patients available to add.</p>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+                      {assignPatient.isPending ? "Adding to your patients..." : "Add to your patients"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

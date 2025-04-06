@@ -32,7 +32,8 @@ import {
   TabsList, 
   TabsTrigger 
 } from "@/components/ui/tabs";
-import { FileText, Plus, ClipboardList } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { FileText, Plus, ClipboardList, Search } from "lucide-react";
 
 interface PatientNotesProps {
   patients: PatientListItem[] | undefined;
@@ -53,6 +54,46 @@ export default function PatientNotes({ patients, isLoading }: PatientNotesProps)
   const queryClient = useQueryClient();
   const [activePatient, setActivePatient] = useState<PatientListItem | null>(null);
   const [showAddNoteDialog, setShowAddNoteDialog] = useState(false);
+  const [searchUsername, setSearchUsername] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResult, setSearchResult] = useState<PatientListItem | null>(null);
+
+  // Search patient by username
+  const searchPatient = useMutation({
+    mutationFn: async (username: string) => {
+      setIsSearching(true);
+      try {
+        const response = await apiRequest("GET", `/api/caregiver/search-patient?username=${encodeURIComponent(username)}`, null);
+        const result = await response.json();
+        return result as PatientListItem;
+      } catch (error) {
+        throw error;
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    onSuccess: (data) => {
+      setSearchResult(data);
+      // If patient is not in the patient list, we can still create notes for them
+      setActivePatient(data);
+      form.setValue("patientId", data.id);
+      setShowAddNoteDialog(true);
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Patient not found",
+        description: "No patient found with that username.",
+      });
+      setSearchResult(null);
+    }
+  });
+
+  const handleSearch = () => {
+    if (searchUsername.trim()) {
+      searchPatient.mutate(searchUsername);
+    }
+  };
 
   // Form setup
   const form = useForm<z.infer<typeof noteFormSchema>>({
@@ -139,25 +180,46 @@ export default function PatientNotes({ patients, isLoading }: PatientNotesProps)
               Document and track patient health information
             </CardDescription>
           </div>
-          <Button 
-            size="sm" 
-            onClick={() => {
-              if (patients && patients.length > 0) {
-                setShowAddNoteDialog(true);
-              } else {
-                toast({
-                  variant: "destructive",
-                  title: "No patients available",
-                  description: "You need to add patients before you can create notes.",
-                });
-              }
-            }}
-            className="text-xs"
-            disabled={!patients || patients.length === 0}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add Note
-          </Button>
+          <div className="flex items-center space-x-2">
+            <div className="relative flex items-center">
+              <Input 
+                type="text" 
+                placeholder="Search by username" 
+                className="w-44 text-xs" 
+                value={searchUsername}
+                onChange={(e) => setSearchUsername(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <Button 
+                size="sm" 
+                onClick={handleSearch}
+                disabled={isSearching || !searchUsername.trim()}
+                className="ml-2 text-xs"
+              >
+                <Search className="h-4 w-4 mr-1" />
+                {isSearching ? "Searching..." : "Search"}
+              </Button>
+            </div>
+            <Button 
+              size="sm" 
+              onClick={() => {
+                if (patients && patients.length > 0) {
+                  setShowAddNoteDialog(true);
+                } else {
+                  toast({
+                    variant: "destructive",
+                    title: "No patients available",
+                    description: "You need patients before you can create notes. Try searching for one by username.",
+                  });
+                }
+              }}
+              className="text-xs"
+              disabled={(isSearching || (!patients || patients.length === 0)) && !searchResult}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add Note
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {patients && patients.length > 0 ? (

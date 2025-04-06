@@ -159,6 +159,7 @@ export default function PatientSignupForm({ onBack, onSuccess }: PatientSignupFo
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
+                  <SelectItem value="als">ALS (Amyotrophic Lateral Sclerosis)</SelectItem>
                   <SelectItem value="cerebral-palsy">Cerebral Palsy</SelectItem>
                   <SelectItem value="multiple-sclerosis">Multiple Sclerosis</SelectItem>
                   <SelectItem value="parkinsons">Parkinson's Disease</SelectItem>
