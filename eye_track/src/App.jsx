@@ -3,19 +3,31 @@ import webgazer from 'webgazer';
 import './App.css';
 
 function App() {
-  let lastX = null;
-  let lastY = null;
+  const lastPosRef = useRef({ x: null, y: null });
 
-  const smoothGaze = (x, y, alpha = 0.4) => {
+
+  const smoothGaze = (x, y, alpha = 0.8) => {
+    let { x: lastX, y: lastY } = lastPosRef.current;
+  
+    // Boost for top rows if y is too low
+    const height = window.innerHeight;
+    if (y < height * 0.3) {
+      y = y - (height * 0.05); // bump up slightly when low
+      y = Math.max(0, y); // clamp
+    }
+  
     if (lastX === null || lastY === null) {
-      lastX = x;
-      lastY = y;
+      lastPosRef.current = { x, y };
     } else {
       lastX = lastX * (1 - alpha) + x * alpha;
       lastY = lastY * (1 - alpha) + y * alpha;
+      lastPosRef.current = { x: lastX, y: lastY };
     }
-    return [lastX, lastY];
+  
+    return [lastPosRef.current.x, lastPosRef.current.y];
   };
+  
+  
 
   const [clickCounts, setClickCounts] = useState({});
   const [calibrated, setCalibrated] = useState(false);
@@ -98,8 +110,10 @@ function App() {
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     const width = canvas.width;
     const height = canvas.height;
-    const clampedX = Math.max(0, Math.min(x, width));
-    const clampedY = Math.max(0, Math.min(y, height));
+    const margin = 10; // radius of the dot
+const clampedX = Math.max(margin, Math.min(x, width - margin));
+const clampedY = Math.max(margin, Math.min(y, height - margin));
+
 
     ctx.clearRect(0, 0, width, height);
     ctx.beginPath();
@@ -112,21 +126,25 @@ function App() {
     const boxes = document.querySelectorAll(".grid-box");
     const buffer = 60;
     let hoveredIndex = null;
-
+  
     boxes.forEach((box, idx) => {
       const rect = box.getBoundingClientRect();
+      const topRow = idx < 3; // adjust this if layout changes
+      const dynamicBuffer = topRow ? 80 : 60;
+    
       const inBox =
-        x >= rect.left - buffer &&
-        x <= rect.right + buffer &&
-        y >= rect.top - buffer &&
-        y <= rect.bottom + buffer;
-
+        x >= rect.left - dynamicBuffer &&
+        x <= rect.right + dynamicBuffer &&
+        y >= rect.top - dynamicBuffer &&
+        y <= rect.bottom + dynamicBuffer;
+    
       if (inBox) hoveredIndex = idx;
     });
-
+    
+  
     if (hoveredIndex !== null) {
       const box = boxes[hoveredIndex];
-
+  
       if (currentFocusRef.current !== hoveredIndex) {
         currentFocusRef.current = hoveredIndex;
         dwellStartRef.current = Date.now();
@@ -134,21 +152,17 @@ function App() {
           b.classList.remove("focused");
           b.removeAttribute("data-confirmed");
         });
-      }
-
-      const now = Date.now();
-      if (
-        dwellStartRef.current &&
-        now - dwellStartRef.current > 1200 &&
-        !box.getAttribute("data-confirmed")
-      ) {
-        box.setAttribute("data-confirmed", "true");
-        box.classList.add("focused");
-        const phrase = box.innerText;
-        setSelectedPhrase(phrase);
-        setShowConfirmOverlay(true);
-        confirmDwellRef.current = null;
-        confirmSideRef.current = null;
+      } else {
+        const now = Date.now();
+        const dwellTime = now - dwellStartRef.current;
+        box.classList.add("focused"); // show focus immediately
+        if (dwellTime > 2000 && !box.getAttribute("data-confirmed")) {
+          box.setAttribute("data-confirmed", "true");
+          setSelectedPhrase(box.innerText);
+          setShowConfirmOverlay(true);
+          confirmDwellRef.current = null;
+          confirmSideRef.current = null;
+        }
       }
     } else {
       if (currentFocusRef.current !== null) {
@@ -160,6 +174,7 @@ function App() {
       }
     }
   };
+  
 
   const handleConfirmOverlayFocus = (x, y) => {
     const screenWidth = window.innerWidth;
@@ -175,17 +190,25 @@ function App() {
       setDwellProgress(Math.min(progress, 1));
       if (progress >= 1) {
         if (side === "left") {
-          // Confirm
           console.log("✅ Confirmed:", selectedPhrase);
           window.speechSynthesis.speak(new SpeechSynthesisUtterance(selectedPhrase));
         } else {
           console.log("❌ Cancelled");
         }
+      
+        // 🔄 Fully reset all state
+        lastPosRef.current = { x: null, y: null };
+        currentFocusRef.current = null;
+        dwellStartRef.current = null;
+        confirmSideRef.current = null;
+        confirmDwellRef.current = null;
+      
         setShowConfirmOverlay(false);
         setSelectedPhrase(null);
         setDwellProgress(0);
-        confirmSideRef.current = null;
       }
+      
+      
     }
   };
 
