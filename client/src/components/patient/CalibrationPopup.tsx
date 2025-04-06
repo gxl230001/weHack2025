@@ -56,6 +56,7 @@ export default function CalibrationPopup({ open, onClose }: CalibrationPopupProp
     if (step < totalSteps) {
       setStep(step + 1);
     } else {
+      // Save preference and proceed to WebGaze
       updateCalibrationPreference.mutate({ showPopup: !dontShowAgain });
     }
   };

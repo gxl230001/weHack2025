@@ -2,6 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
+/* WebGaze Calibration Dots */
+.calibration-dot {
+  width: 30px;
+  height: 30px;
+  background-color: red;
+  border-radius: 50%;
+  position: absolute;
+  opacity: 0.8;
+  cursor: pointer;
+  z-index: 9999;
+}
+
+/* Dot layout positions */
+#Pt1 { top: 10%; left: 10%; }
+#Pt2 { top: 10%; left: 45%; }
+#Pt3 { top: 10%; left: 80%; }
+
+#Pt4 { top: 45%; left: 10%; }
+#Pt5 { top: 45%; left: 45%; }
+#Pt6 { top: 45%; left: 80%; }
+
+#Pt7 { top: 80%; left: 10%; }
+#Pt8 { top: 80%; left: 45%; }
+#Pt9 { top: 80%; left: 80%; }
+
+/* Focused grid box */
+.grid-box.focused {
+  border: 3px solid #2196f3;
+  background-color: #bbdefb;
+  color: #062e33;
+  transform: scale(1.05);
+  transition: 0.2s;
+}
+
 @layer base {
   * {
     @apply border-border;

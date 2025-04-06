@@ -7,6 +7,7 @@ import { AuthResponse, HealthNoteResponse } from "@shared/schema";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import CalibrationPopup from "@/components/patient/CalibrationPopup";
+import WebGazeTracker from "@/components/patient/WebGazeTracker";
 import { 
   Tabs, 
   TabsContent, 
@@ -27,6 +28,7 @@ export default function PatientDashboard() {
   const [, setLocation] = useLocation();
   const [showCalibrationPopup, setShowCalibrationPopup] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [showWebGazeTracker, setShowWebGazeTracker] = useState(false);
 
   // Get current user
   const { data: user, isLoading } = useQuery<AuthResponse>({
@@ -39,6 +41,15 @@ export default function PatientDashboard() {
       setShowCalibrationPopup(true);
     }
   }, [user]);
+
+  // Handle calibration popup close
+  const handleCalibrationClose = () => {
+    setShowCalibrationPopup(false);
+    // Start WebGazer when calibration popup is closed
+    if (user?.showCalibrationPopup === false) {
+      setShowWebGazeTracker(true);
+    }
+  };
 
   // Logout mutation
   const logout = useMutation({
@@ -67,12 +78,22 @@ export default function PatientDashboard() {
     enabled: !!user,
   });
 
+  // Handle WebGaze start
+  const startWebGaze = () => {
+    setShowWebGazeTracker(true);
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
         Loading...
       </div>
     );
+  }
+
+  // If WebGaze is active, show the WebGazeTracker component
+  if (showWebGazeTracker) {
+    return <WebGazeTracker onClose={() => setShowWebGazeTracker(false)} />;
   }
 
   return (
@@ -297,10 +318,10 @@ export default function PatientDashboard() {
                   <Button 
                     className="w-full" 
                     size="lg"
-                    onClick={() => setShowCalibrationPopup(true)}
+                    onClick={startWebGaze}
                   >
                     <Eye className="h-4 w-4 mr-2" />
-                    Start WebGaze Calibration
+                    Launch WebGaze Communication Tool
                   </Button>
                 </div>
                 
@@ -348,7 +369,7 @@ export default function PatientDashboard() {
       {/* Calibration Popup */}
       <CalibrationPopup 
         open={showCalibrationPopup} 
-        onClose={() => setShowCalibrationPopup(false)} 
+        onClose={handleCalibrationClose} 
       />
     </div>
   );
