@@ -6,7 +6,7 @@ function App() {
   let lastX = null;
   let lastY = null;
 
-  const smoothGaze = (x, y, alpha = 0.5) => {
+  const smoothGaze = (x, y, alpha = 0.4) => {
     if (lastX === null || lastY === null) {
       lastX = x;
       lastY = y;
@@ -19,21 +19,25 @@ function App() {
 
   const [clickCounts, setClickCounts] = useState({});
   const [calibrated, setCalibrated] = useState(false);
-  const canvasRef = useRef(null);
+  const [selectedPhrase, setSelectedPhrase] = useState(null);
+  const [showConfirmOverlay, setShowConfirmOverlay] = useState(false);
+  const [confirmSide, setConfirmSide] = useState(null);
+  const [dwellProgress, setDwellProgress] = useState(0);
 
-  const [focusedBoxIndex, setFocusedBoxIndex] = useState(null);
+  const canvasRef = useRef(null);
   const dwellStartRef = useRef(null);
+  const currentFocusRef = useRef(null);
+  const confirmDwellRef = useRef(null);
+  const confirmSideRef = useRef(null);
+
   const gridItems = [
     "I'm hungry", "Need help", "Bathroom",
     "I'm in pain", "Yes", "No"
   ];
 
+  const dotIds = Array.from({ length: 9 }, (_, i) => `Pt${i + 1}`);
   const requiredClicks = 5;
-  const dotIds = [
-    'Pt1', 'Pt2', 'Pt3',
-    'Pt4', 'Pt5', 'Pt6',
-    'Pt7', 'Pt8', 'Pt9'
-  ];
+  const confirmDwellDuration = 3000; // ms
 
   useEffect(() => {
     const initialCounts = {};
@@ -45,15 +49,16 @@ function App() {
         if (data) {
           const [sx, sy] = smoothGaze(data.x, data.y);
           drawGazeDot(sx, sy);
-          if (calibrated) handleGridFocus(sx, sy);
+          if (calibrated && !showConfirmOverlay) handleGridFocus(sx, sy);
+          if (showConfirmOverlay) handleConfirmOverlayFocus(sx, sy);
         }
       })
       .begin();
 
     webgazer.showVideoPreview(true)
-            .showPredictionPoints(false)
-            .showFaceOverlay(true);
-  }, []);
+      .showPredictionPoints(false)
+      .showFaceOverlay(true);
+  }, [calibrated, showConfirmOverlay]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -68,7 +73,6 @@ function App() {
 
     setClickCounts(prev => {
       const newCounts = { ...prev, [id]: prev[id] + 1 };
-
       const dot = document.getElementById(id);
       if (dot) {
         dot.style.opacity = (1 - newCounts[id] * 0.15).toString();
@@ -80,22 +84,20 @@ function App() {
       const allDone = Object.values(newCounts).every(count => count >= requiredClicks);
       if (allDone) {
         setCalibrated(true);
-        const instructions = document.getElementById("instructions");
-        if (instructions) instructions.textContent = "✅ Calibration complete. Gaze tracking is active!";
+        document.getElementById("instructions").textContent = "✅ Calibration complete. Gaze tracking is active!";
       }
 
       return newCounts;
     });
   };
 
-  function drawGazeDot(x, y) {
+  const drawGazeDot = (x, y) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     const width = canvas.width;
     const height = canvas.height;
-
     const clampedX = Math.max(0, Math.min(x, width));
     const clampedY = Math.max(0, Math.min(y, height));
 
@@ -104,29 +106,86 @@ function App() {
     ctx.arc(clampedX, clampedY, 10, 0, 2 * Math.PI);
     ctx.fillStyle = "rgba(0, 150, 255, 0.6)";
     ctx.fill();
-  }
+  };
 
   const handleGridFocus = (x, y) => {
     const boxes = document.querySelectorAll(".grid-box");
-    let current = null;
+    const buffer = 60;
+    let hoveredIndex = null;
 
     boxes.forEach((box, idx) => {
       const rect = box.getBoundingClientRect();
-      const inBox = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-      if (inBox) current = idx;
+      const inBox =
+        x >= rect.left - buffer &&
+        x <= rect.right + buffer &&
+        y >= rect.top - buffer &&
+        y <= rect.bottom + buffer;
+
+      if (inBox) hoveredIndex = idx;
     });
 
-    if (current !== null) {
-      if (current !== focusedBoxIndex) {
-        setFocusedBoxIndex(current);
+    if (hoveredIndex !== null) {
+      const box = boxes[hoveredIndex];
+
+      if (currentFocusRef.current !== hoveredIndex) {
+        currentFocusRef.current = hoveredIndex;
         dwellStartRef.current = Date.now();
-        boxes.forEach((b, i) => b.classList.remove("focused"));
-      } else if (Date.now() - dwellStartRef.current > 1200) {
-        boxes[current].classList.add("focused");
+        boxes.forEach(b => {
+          b.classList.remove("focused");
+          b.removeAttribute("data-confirmed");
+        });
+      }
+
+      const now = Date.now();
+      if (
+        dwellStartRef.current &&
+        now - dwellStartRef.current > 1200 &&
+        !box.getAttribute("data-confirmed")
+      ) {
+        box.setAttribute("data-confirmed", "true");
+        box.classList.add("focused");
+        const phrase = box.innerText;
+        setSelectedPhrase(phrase);
+        setShowConfirmOverlay(true);
+        confirmDwellRef.current = null;
+        confirmSideRef.current = null;
       }
     } else {
-      setFocusedBoxIndex(null);
-      boxes.forEach(box => box.classList.remove("focused"));
+      if (currentFocusRef.current !== null) {
+        const prevBox = boxes[currentFocusRef.current];
+        prevBox.classList.remove("focused");
+        prevBox.removeAttribute("data-confirmed");
+        currentFocusRef.current = null;
+        dwellStartRef.current = null;
+      }
+    }
+  };
+
+  const handleConfirmOverlayFocus = (x, y) => {
+    const screenWidth = window.innerWidth;
+    const side = x < screenWidth / 2 ? "left" : "right";
+
+    if (confirmSideRef.current !== side) {
+      confirmSideRef.current = side;
+      confirmDwellRef.current = Date.now();
+      setDwellProgress(0);
+    } else {
+      const now = Date.now();
+      const progress = (now - confirmDwellRef.current) / confirmDwellDuration;
+      setDwellProgress(Math.min(progress, 1));
+      if (progress >= 1) {
+        if (side === "left") {
+          // Confirm
+          console.log("✅ Confirmed:", selectedPhrase);
+          window.speechSynthesis.speak(new SpeechSynthesisUtterance(selectedPhrase));
+        } else {
+          console.log("❌ Cancelled");
+        }
+        setShowConfirmOverlay(false);
+        setSelectedPhrase(null);
+        setDwellProgress(0);
+        confirmSideRef.current = null;
+      }
     }
   };
 
@@ -134,27 +193,35 @@ function App() {
     <div className="app">
       <h1>LooKey Eye Tracker</h1>
       <p id="instructions">Click each red dot 5 times to calibrate.</p>
-
       <canvas id="overlay" ref={canvasRef}></canvas>
 
-      {/* Red calibration dots */}
-      {!calibrated && dotIds.map((id) => (
-        <div
-          key={id}
-          id={id}
-          className="calibration-dot"
-          onClick={() => handleCalibrationClick(id)}
-        ></div>
+      {!calibrated && dotIds.map(id => (
+        <div key={id} id={id} className="calibration-dot" onClick={() => handleCalibrationClick(id)} />
       ))}
 
-      {/* Grid options after calibration */}
-      {calibrated && (
+      {calibrated && !showConfirmOverlay && (
         <div className="grid-container">
           {gridItems.map((text, i) => (
-            <div key={i} className="grid-box" data-index={i}>
-              {text}
-            </div>
+            <div key={i} className="grid-box">{text}</div>
           ))}
+        </div>
+      )}
+
+      {showConfirmOverlay && (
+        <div className="confirm-overlay">
+          <div className="confirm-side left">
+            <h2>✅ You chose:</h2>
+            <p>{selectedPhrase}</p>
+            <div className="progress-bar">
+              <div className="fill" style={{ width: confirmSideRef.current === "left" ? `${dwellProgress * 100}%` : 0 }}></div>
+            </div>
+          </div>
+          <div className="confirm-side right">
+            <h2>❌ Cancel</h2>
+            <div className="progress-bar">
+              <div className="fill" style={{ width: confirmSideRef.current === "right" ? `${dwellProgress * 100}%` : 0 }}></div>
+            </div>
+          </div>
         </div>
       )}
     </div>
