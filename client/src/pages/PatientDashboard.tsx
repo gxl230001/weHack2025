@@ -102,7 +102,7 @@ export default function PatientDashboard() {
     <div className="min-h-screen bg-gray-100">
       <header className="bg-primary px-6 py-4 text-white">
         <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-semibold">Lookie</h1>
+          <h1 className="text-2xl font-semibold">LooKey</h1>
           <div className="flex items-center gap-4">
             <span>Welcome, {user?.name}</span>
             <Button 
@@ -351,10 +351,10 @@ export default function PatientDashboard() {
                       Control Functions
                     </h3>
                     <ul className="space-y-2 text-sm">
-                      <li>Stare to move cursor</li>
-                      <li>Blink once to click</li>
-                      <li>Blink twice to right-click</li>
-                      <li>Look up/down to scroll</li>
+                    <li>Use your eyes to guide the cursor</li>
+                    <li>Stare at an option for 1–2 seconds to choose it</li>
+                    <li>Look up or down to scroll</li>
+
                     </ul>
                   </div>
                 </div>
@@ -365,7 +365,7 @@ export default function PatientDashboard() {
       </main>
 
       <footer className="bg-gray-50 border-t border-gray-200 py-4 text-center text-sm text-gray-600">
-        <p>© 2025 Lookie. All rights reserved.</p>
+        <p>© 2025 LooKey. All rights reserved.</p>
       </footer>
 
       {/* Calibration Popup */}
