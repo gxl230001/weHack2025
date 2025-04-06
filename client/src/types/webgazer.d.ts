@@ -1,7 +1,4 @@
-// Type declarations for webgazer
-declare module 'webgazer';
-
-// Add webgazer as a property to the Window interface
-interface Window {
+// Type declarations for webgazer library
+declare interface Window {
   webgazer: any;
 }

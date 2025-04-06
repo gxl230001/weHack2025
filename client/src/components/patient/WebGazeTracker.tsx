@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { initializeWebGazer } from "@/lib/webgazer";
 
 interface WebGazeTrackerProps {
   onClose: () => void;
@@ -94,43 +95,50 @@ export default function WebGazeTracker({ onClose }: WebGazeTrackerProps) {
     dotIds.forEach(id => initialCounts[id] = 0);
     setClickCounts(initialCounts);
 
-    try {
-      // Check if webgazer is available
-      if (window.webgazer) {
-        console.log("WebGazer is initializing...");
+    const initWebGazer = async () => {
+      try {
+        // Initialize WebGazer
+        console.log("Initializing WebGazer...");
+        await initializeWebGazer();
         
-        window.webgazer.setRegression('ridge')
-          .setGazeListener((data: any) => {
-            if (data) {
-              const [sx, sy] = smoothGaze(data.x, data.y);
-              drawGazeDot(sx, sy);
-              if (calibrated && !showConfirmOverlay) handleGridFocus(sx, sy);
-              if (showConfirmOverlay) handleConfirmOverlayFocus(sx, sy);
-            }
-          })
-          .begin();
-    
-        window.webgazer.showVideoPreview(true)
-          .showPredictionPoints(false)
-          .showFaceOverlay(true);
+        if (window.webgazer) {
+          console.log("WebGazer is available, setting up...");
           
-        console.log("WebGazer initialized successfully");
-      } else {
-        console.error("WebGazer is not available");
+          window.webgazer.setRegression('ridge')
+            .setGazeListener((data: any) => {
+              if (data) {
+                const [sx, sy] = smoothGaze(data.x, data.y);
+                drawGazeDot(sx, sy);
+                if (calibrated && !showConfirmOverlay) handleGridFocus(sx, sy);
+                if (showConfirmOverlay) handleConfirmOverlayFocus(sx, sy);
+              }
+            })
+            .begin();
+      
+          window.webgazer.showVideoPreview(true)
+            .showPredictionPoints(false)
+            .showFaceOverlay(true);
+            
+          console.log("WebGazer initialized successfully");
+        } else {
+          console.error("WebGazer is not available");
+          toast({
+            variant: "destructive",
+            title: "WebGazer Error",
+            description: "Eye tracking library is not available. Please check your browser compatibility.",
+          });
+        }
+      } catch (error) {
+        console.error("Error initializing webgazer:", error);
         toast({
           variant: "destructive",
-          title: "WebGazer Error",
-          description: "Eye tracking library is not available. Please check your browser compatibility.",
+          title: "Error",
+          description: "Failed to initialize eye tracking. Please try again.",
         });
       }
-    } catch (error) {
-      console.error("Error initializing webgazer:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to initialize eye tracking. Please try again.",
-      });
-    }
+    };
+    
+    initWebGazer();
       
     return () => {
       // Cleanup webgazer when component unmounts

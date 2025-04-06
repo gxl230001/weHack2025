@@ -2,7 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* WebGaze Calibration Dots */
+/* WebGaze Eye Tracker Styles */
+.webgaze-app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #f0f0f0;
+}
+
+/* Red calibration dots */
 .calibration-dot {
   width: 30px;
   height: 30px;
@@ -27,14 +36,77 @@
 #Pt8 { top: 80%; left: 45%; }
 #Pt9 { top: 80%; left: 80%; }
 
-/* Focused grid box */
+/* Grid box for eye tracking selections */
+.grid-box {
+  background-color: hsl(var(--primary));
+  color: white;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 20px;
+  border: 3px solid transparent;
+  border-radius: 12px;
+  transition: border-color 0.3s, transform 0.2s;
+  position: relative;
+}
+
 .grid-box.focused {
   border: 3px solid #2196f3;
   background-color: #bbdefb;
-  color: #062e33;
+  color: hsl(var(--primary));
   transform: scale(1.05);
   transition: 0.2s;
 }
+
+/* Confirmation overlay styles */
+.confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  z-index: 9999;
+  font-family: Arial, sans-serif;
+}
+
+.confirm-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  padding: 20px;
+  font-size: 24px;
+}
+
+.confirm-side.left {
+  background: rgba(76, 175, 80, 0.7); /* Green */
+}
+
+.confirm-side.right {
+  background: rgba(244, 67, 54, 0.7); /* Red */
+}
+
+.progress-bar {
+  width: 80%;
+  height: 12px;
+  background-color: rgba(255,255,255,0.3);
+  border-radius: 6px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.progress-bar .fill {
+  height: 100%;
+  background-color: white;
+  transition: width 0.2s;
+}
+
+
 
 @layer base {
   * {
